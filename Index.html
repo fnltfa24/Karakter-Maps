@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KarakterMap - Jelajahi Nilai Budaya Indonesia</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, #e74c3c, #f39c12);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            text-align: center;
+            color: #555;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            height: calc(100vh - 140px);
+        }
+
+        .map-container {
+            background: white;
+            border-radius: 20px;
+            padding: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100%;
+            border-radius: 15px;
+            z-index: 1;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow-y: auto;
+            height: fit-content;
+            max-height: 100%;
+        }
+
+        .region-card {
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .region-card.active {
+            display: block;
+        }
+
+        .region-card h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 0.5rem;
+        }
+
+        .value-tag {
+            background: linear-gradient(45deg, #f39c12, #e74c3c);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            display: inline-block;
+            margin-bottom: 1rem;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .story-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin: 1rem 0;
+            border-left: 4px solid #3498db;
+        }
+
+        .story-section h3 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .story-section p {
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .quiz-section {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-top: 1rem;
+        }
+
+        .quiz-question {
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .quiz-option {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 0.8rem;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-option:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .quiz-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        .welcome-card {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .welcome-card h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .welcome-card p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+
+        .floating-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            max-width: 200px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+                height: auto;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .map-container {
+                height: 50vh;
+            }
+        }
+
+        .custom-marker {
+            background: linear-gradient(45deg, #e74c3c, #f39c12);
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .custom-marker:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ KarakterMap</h1>
+        <p>Jelajahi Kekayaan Nilai dan Budaya Nusantara</p>
+    </div>
+
+    <div class="container">
+        <div class="map-container">
+            <div class="floating-info">
+                <strong>🎯 Petunjuk:</strong><br>
+                Klik marker di peta untuk menjelajahi nilai budaya dari berbagai daerah!
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <div class="sidebar">
+            <div class="welcome-card region-card active" id="welcome">
+                <h2>✨ Selamat Datang!</h2>
+                <p>KarakterMap mengajak Anda menjelajahi kekayaan nilai-nilai luhur budaya Indonesia. Setiap daerah memiliki kearifan lokal yang unik dan mengajarkan karakter mulia.</p>
+                <br>
+                <p><strong>Klik marker di peta untuk memulai petualangan!</strong></p>
+            </div>
+
+            <div class="region-card" id="minangkabau">
+                <h2>🏔️ Minangkabau</h2>
+                <div class="value-tag">💎 KEJUJURAN</div>
+                
+                <div class="story-section">
+                    <h3>📖 Cerita Tokoh: Buya Hamka</h3>
+                    <p>Haji Abdul Malik Karim Amrullah, atau Buya Hamka, adalah ulama besar Minangkabau yang dikenal karena kejujurannya. Meski sempat dipenjara karena keberaniannya berkata jujur, beliau tidak pernah menyerah dalam menyebarkan kebenaran dan ilmu.</p>
+                </div>
+
+                <div class="story-section">
+                    <h3>🎭 Filosofi Adat</h3>
+                    <p>"Adat basandi syara', syara' basandi Kitabullah" - filosofi ini mengajarkan bahwa kejujuran adalah fondasi kehidupan. Dalam tradisi Minang, berbohong dianggap sebagai perbuatan yang merusak martabat dan kehormatan keluarga.</p>
+                </div>
+
+                <div class="quiz-section">
+                    <div class="quiz-question">🤔 Kuis: Apa yang dimaksud dengan "Adat basandi syara'"?</div>
+                    <div class="quiz-options">
+                        <button class="quiz-option" onclick="answerQuiz('minang', 'A')">A. Adat berdasarkan kesenangan</button>
+                        <button class="quiz-option" onclick="answerQuiz('minang', 'B')">B. Adat berdasarkan syariat</button>
+                        <button class="quiz-option" onclick="answerQuiz('minang', 'C')">C. Adat berdasarkan kekuasaan</button>
+                    </div>
+                    <div class="quiz-result" id="minang-result"></div>
+                </div>
+            </div>
+
+            <div class="region-card" id="jawa">
+                <h2>🏛️ Jawa Tengah</h2>
+                <div class="value-tag">🤝 GOTONG ROYONG</div>
+                
+                <div class="story-section">
+                    <h3>📖 Cerita Tokoh: Ki Hajar Dewantara</h3>
+                    <p>Bapak Pendidikan Indonesia ini menerapkan prinsip gotong royong dalam mendirikan Taman Siswa. Beliau percaya bahwa pendidikan terbaik lahir dari kerja sama semua pihak - guru, murid, dan masyarakat.</p>
+                </div>
+
+                <div class="story-section">
+                    <h3>🌾 Tradisi Sambatan</h3>
+                    <p>Sambatan adalah tradisi gotong royong dalam masyarakat Jawa, dimana warga bergotong royong membantu tetangga yang sedang membangun rumah, panen, atau mengadakan hajatan. Tidak ada upah, hanya kerelaan membantu sesama.</p>
+                </div>
+
+                <div class="quiz-section">
+                    <div class="quiz-question">🤔 Kuis: Apa nama tradisi gotong royong di Jawa?</div>
+                    <div class="quiz-options">
+                        <button class="quiz-option" onclick="answerQuiz('jawa', 'A')">A. Sambatan</button>
+                        <button class="quiz-option" onclick="answerQuiz('jawa', 'B')">B. Slametan</button>
+                        <button class="quiz-option" onclick="answerQuiz('jawa', 'C')">C. Gugur Gunung</button>
+                    </div>
+                    <div class="quiz-result" id="jawa-result"></div>
+                </div>
+            </div>
+
+            <div class="region-card" id="sunda">
+                <h2>🌸 Sunda</h2>
+                <div class="value-tag">🙏 SOPAN SANTUN</div>
+                
+                <div class="story-section">
+                    <h3>📖 Cerita Tokoh: Dewi Sartika</h3>
+                    <p>Pelopor pendidikan wanita dari Sunda ini dikenal sangat sopan dan santun. Meski berjuang untuk hak-hak perempuan, beliau selalu menjaga adab dan kesopanan dalam setiap langkahnya, mencerminkan karakter luhur Sunda.</p>
+                </div>
+
+                <div class="story-section">
+                    <h3>🎋 Filosofi "Someah hade"</h3>
+                    <p>"Someah hade" mengajarkan untuk selalu bersikap ramah, sopan, dan menghormati orang lain. Dalam budaya Sunda, cara berbicara dan berperilaku harus selalu mencerminkan akhlak mulia dan rasa hormat.</p>
+                </div>
+
+                <div class="quiz-section">
+                    <div class="quiz-question">🤔 Kuis: Apa arti "Someah hade" dalam budaya Sunda?</div>
+                    <div class="quiz-options">
+                        <button class="quiz-option" onclick="answerQuiz('sunda', 'A')">A. Bekerja keras</button>
+                        <button class="quiz-option" onclick="answerQuiz('sunda', 'B')">B. Ramah dan sopan</button>
+                        <button class="quiz-option" onclick="answerQuiz('sunda', 'C')">C. Bijaksana</button>
+                    </div>
+                    <div class="quiz-result" id="sunda-result"></div>
+                </div>
+            </div>
+
+            <div class="region-card" id="batak">
+                <h2>🏔️ Batak</h2>
+                <div class="value-tag">💪 ETOS KERJA</div>
+                
+                <div class="story-section">
+                    <h3>📖 Cerita Tokoh: Tobias Parlindungan Silalahi</h3>
+                    <p>Tokoh Batak yang dikenal gigih dalam memperjuangkan pendidikan. Beliaulah yang mendirikan sekolah-sekolah pertama di tanah Batak, menunjukkan etos kerja yang tinggi untuk memajukan pendidikan rakyat.</p>
+                </div>
+
+                <div class="story-section">
+                    <h3>⚒️ Filosofi "Hasangapon"</h3>
+                    <p>Hasangapon berarti memiliki kehormatan dan martabat yang diperoleh melalui kerja keras dan prestasi. Dalam budaya Batak, seseorang dihargai bukan karena keturunannya, tetapi karena jerih payah and ketekunannya.</p>
+                </div>
+
+                <div class="quiz-section">
+                    <div class="quiz-question">🤔 Kuis: Apa makna "Hasangapon" dalam budaya Batak?</div>
+                    <div class="quiz-options">
+                        <button class="quiz-option" onclick="answerQuiz('batak', 'A')">A. Kekayaan turun temurun</button>
+                        <button class="quiz-option" onclick="answerQuiz('batak', 'B')">B. Kehormatan melalui kerja keras</button>
+                        <button class="quiz-option" onclick="answerQuiz('batak', 'C')">C. Keberuntungan dalam hidup</button>
+                    </div>
+                    <div class="quiz-result" id="batak-result"></div>
+                </div>
+            </div>
+
+            <div class="region-card" id="bugis">
+                <h2>⛵ Bugis-Makassar</h2>
+                <div class="value-tag">🧭 KETANGGUHAN</div>
+                
+                <div class="story-section">
+                    <h3>📖 Cerita Tokoh: Sultan Hasanuddin</h3>
+                    <p>Dikenal sebagai "Ayam Jantan dari Timur", Sultan Hasanuddin menunjukkan ketangguhan luar biasa dalam mempertahankan Makassar dari penjajah. Keberaniannya menjadi inspirasi bagi rakyat Bugis-Makassar.</p>
+                </div>
+
+                <div class="story-section">
+                    <h3>🌊 Tradisi Pelaut</h3>
+                    <p>Suku Bugis terkenal sebagai pelaut tangguh yang menjelajahi lautan hingga ke Malaysia dan Singapura. Ketangguhan mereka dalam menghadapi badai dan ombak menjadi bagian dari karakter yang diturunkan dari generasi ke generasi.</p>
+                </div>
+
+                <div class="quiz-section">
+                    <div class="quiz-question">🤔 Kuis: Sultan Hasanuddin dikenal dengan sebutan apa?</div>
+                    <div class="quiz-options">
+                        <button class="quiz-option" onclick="answerQuiz('bugis', 'A')">A. Singa Laut</button>
+                        <button class="quiz-option" onclick="answerQuiz('bugis', 'B')">B. Ayam Jantan dari Timur</button>
+                        <button class="quiz-option" onclick="answerQuiz('bugis', 'C')">C. Harimau Selatan</button>
+                    </div>
+                    <div class="quiz-result" id="bugis-result"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([-2.5, 118], 5);
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Cultural regions data
+        const regions = [
+            {
+                id: 'minangkabau',
+                name: 'Minangkabau',
+                coords: [-0.5, 100.5],
+                value: 'Kejujuran',
+                icon: '💎'
+            },
+            {
+                id: 'jawa',
+                name: 'Jawa Tengah',
+                coords: [-7.5, 110.5],
+                value: 'Gotong Royong',
+                icon: '🤝'
+            },
+            {
+                id: 'sunda',
+                name: 'Sunda',
+                coords: [-6.9, 107.5],
+                value: 'Sopan Santun',
+                icon: '🙏'
+            },
+            {
+                id: 'batak',
+                name: 'Batak',
+                coords: [2.5, 98.5],
+                value: 'Etos Kerja',
+                icon: '💪'
+            },
+            {
+                id: 'bugis',
+                name: 'Bugis-Makassar',
+                coords: [-5.1, 119.4],
+                value: 'Ketangguhan',
+                icon: '🧭'
+            }
+        ];
+
+        // Quiz answers
+        const quizAnswers = {
+            minang: 'B',
+            jawa: 'A',
+            sunda: 'B',
+            batak: 'B',
+            bugis: 'B'
+        };
+
+        // Add markers
+        regions.forEach(region => {
+            const customIcon = L.divIcon({
+                className: 'custom-marker',
+                html: region.icon,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            const marker = L.marker(region.coords, { icon: customIcon })
+                .addTo(map)
+                .bindPopup(`
+                    <div style="text-align: center; padding: 10px;">
+                        <h3>${region.name}</h3>
+                        <p><strong>Nilai:</strong> ${region.value}</p>
+                        <p>Klik marker untuk mempelajari lebih lanjut!</p>
+                    </div>
+                `)
+                .on('click', function() {
+                    showRegionInfo(region.id);
+                });
+        });
+
+        function showRegionInfo(regionId) {
+            // Hide all cards
+            document.querySelectorAll('.region-card').forEach(card => {
+                card.classList.remove('active');
+            });
+
+            // Show selected card
+            document.getElementById(regionId).classList.add('active');
+        }
+
+        function answerQuiz(region, answer) {
+            const correct = quizAnswers[region];
+            const resultDiv = document.getElementById(region + '-result');
+            
+            if (answer === correct) {
+                resultDiv.innerHTML = '🎉 <strong>Benar!</strong> Selamat, Anda memahami nilai budaya ini dengan baik!';
+                resultDiv.style.background = 'rgba(46, 204, 113, 0.3)';
+            } else {
+                resultDiv.innerHTML = '❌ <strong>Kurang tepat.</strong> Mari pelajari lagi cerita dan filosofinya!';
+                resultDiv.style.background = 'rgba(231, 76, 60, 0.3)';
+            }
+            
+            resultDiv.style.display = 'block';
+            
+            // Hide result after 3 seconds
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Add some interactivity when map loads
+        map.on('load', function() {
+            console.log('Map loaded successfully!');
+        });
+
+        // Add zoom animation
+        map.on('zoomend', function() {
+            document.querySelectorAll('.leaflet-marker-icon').forEach(marker => {
+                marker.style.transform += ' scale(' + (map.getZoom() / 5) + ')';
+            });
+        });
+    </script>
+</body>
+</html>
